@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Installer tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Tronador for documentation
+        uses: ./
+        with:
+          version: 0.2.3
+      - name: Generate and validate README
+        run: |
+          tronador readme build
+          git diff --exit-code -- README.md
+          tronador readme lint
+      - name: Run installer tests
+        run: bash test/install.sh
+
+  integration:
+    name: ${{ matrix.os }} (${{ matrix.version }})
+    needs: unit
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            version: latest
+          - os: macos-latest
+            version: 0.2.3
+          - os: windows-latest
+            version: 0.2.3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Tronador
+        id: tronador
+        uses: ./
+        with:
+          version: ${{ matrix.version }}
+      - name: Verify installed CLI
+        shell: pwsh
+        env:
+          TRONADOR_PATH: ${{ steps.tronador.outputs.path }}
+        run: |
+          tronador version
+          if (-not (Test-Path -LiteralPath $env:TRONADOR_PATH)) {
+            throw 'The action output path does not exist.'
+          }

@@ -1,0 +1,42 @@
+name: Install Tronador CLI
+description: Install the CloudOps Works Tronador CLI from GitHub Releases.
+author: CloudOps Works
+
+inputs:
+  version:
+    description: Release version to install (for example, 0.2.3 or v0.2.3). Defaults to the latest stable release.
+    required: false
+    default: latest
+  install-dir:
+    description: Directory where the Tronador executable is installed. Defaults to a directory under RUNNER_TEMP.
+    required: false
+    default: ''
+
+outputs:
+  version:
+    description: The installed release tag.
+    value: ${{ steps.install-posix.outputs.version || steps.install-windows.outputs.version }}
+  path:
+    description: Absolute path to the installed Tronador executable.
+    value: ${{ steps.install-posix.outputs.path || steps.install-windows.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - id: install-posix
+      if: runner.os != 'Windows'
+      name: Install Tronador (Linux/macOS)
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_INSTALL_DIR: ${{ inputs.install-dir }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/install.sh"
+
+    - id: install-windows
+      if: runner.os == 'Windows'
+      name: Install Tronador (Windows)
+      shell: pwsh
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_INSTALL_DIR: ${{ inputs.install-dir }}
+      run: '& "$env:GITHUB_ACTION_PATH/scripts/install.ps1"'

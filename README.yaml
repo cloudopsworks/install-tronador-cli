@@ -1,0 +1,95 @@
+name: install-tronador-cli
+
+badges:
+  - name: Latest Release
+    image: https://img.shields.io/github/v/release/cloudopsworks/install-tronador-cli?style=for-the-badge
+    url: https://github.com/cloudopsworks/install-tronador-cli/releases/latest
+  - name: CI
+    image: https://img.shields.io/github/actions/workflow/status/cloudopsworks/install-tronador-cli/ci.yml?branch=main&style=for-the-badge
+    url: https://github.com/cloudopsworks/install-tronador-cli/actions/workflows/ci.yml
+
+license: APACHE2
+
+copyrights:
+  - name: Cloud Ops Works LLC
+    url: https://cloudopsworks.co
+    year: '2026'
+
+github_repo: cloudopsworks/install-tronador-cli
+
+description: |-
+  A GitHub Action that installs the CloudOps Works Tronador CLI from verified GitHub Release artifacts.
+
+introduction: |-
+  - Installs the latest stable Tronador release by default, or a pinned release version when reproducibility is required.
+  - Supports Linux, macOS, and Windows runners on `amd64` and `arm64`.
+  - Verifies each downloaded release archive against its published `SHA256SUMS` manifest before adding the executable to `PATH`.
+
+usage: |-
+  ### Latest stable release
+
+  ```yaml
+  steps:
+    - uses: actions/checkout@v4
+    - name: Install the latest stable Tronador release
+      uses: cloudopsworks/install-tronador-cli@v1
+    - run: tronador version
+  ```
+
+  ### Pinned release
+
+  Both `0.2.3` and `v0.2.3` are accepted:
+
+  ```yaml
+  - name: Install a specific release
+    uses: cloudopsworks/install-tronador-cli@v1
+    with:
+      version: 0.2.3
+  ```
+
+  ### Inputs
+
+  | Name | Required | Default | Description |
+  | --- | --- | --- | --- |
+  | `version` | No | `latest` | A Tronador release tag or version. `latest` resolves the latest stable GitHub release. |
+  | `install-dir` | No | `$RUNNER_TEMP/tronador-cli/bin` | Absolute directory where the executable is installed. The directory is added to `PATH`. |
+
+  ### Outputs
+
+  | Name | Description |
+  | --- | --- |
+  | `version` | Installed release tag, such as `v0.2.3`. |
+  | `path` | Absolute path to the installed executable. |
+
+examples: |-
+  ### Use the installed CLI in a workflow
+
+  ```yaml
+  - uses: cloudopsworks/install-tronador-cli@v1
+    id: tronador
+    with:
+      version: 0.2.3
+
+  - name: Report the installed version
+    run: tronador version
+  ```
+
+quickstart: |-
+  ### Development
+
+  `README.yaml` is the documentation source of truth. Generate `README.md` with
+  Tronador after editing it:
+
+  ```bash
+  tronador readme build
+  tronador readme lint
+  ```
+
+  Run the installer tests locally:
+
+  ```bash
+  bash test/install.sh
+  ```
+
+  CI regenerates `README.md` from this file and fails if the generated result is
+  not committed.
