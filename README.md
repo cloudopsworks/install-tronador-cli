@@ -44,6 +44,8 @@ It's 100% Open Source and licensed under the [APACHE2](LICENSE).
 - Installs the latest stable Tronador release by default, or a pinned release version when reproducibility is required.
 - Supports Linux, macOS, and Windows runners on `amd64` and `arm64`.
 - Verifies each downloaded release archive against its published `SHA256SUMS` manifest before adding the executable to `PATH`.
+- Caches the executable in the runner tool cache, so repeat installs of the same release do no network I/O.
+- Resists GitHub's HTTP 403 rate limiting: authenticated release lookups, a quota-free fallback, and rate-limit aware retries.
 
 ## Usage
 
@@ -70,12 +72,30 @@ Both `0.2.3` and `v0.2.3` are accepted:
     version: 0.2.3
 ```
 
+### Rate limiting
+
+Resolving `latest` needs a release lookup, and anonymous lookups are capped at 60 requests
+per hour **per runner IP address**, which GitHub-hosted runners share. Busy repositories hit
+that ceiling and fail with `HTTP 403: API rate limit exceeded`. The action avoids this in
+four ways:
+
+- The `token` input defaults to `${{ github.token }}`, so the lookup is authenticated and
+  billed against the token's 5,000 requests per hour instead of the shared runner IP.
+- If the API is rate limited anyway, the tag is resolved from the `releases/latest` redirect,
+  which spends no API quota at all.
+- Pinning `version` skips the lookup entirely: release downloads are not API requests.
+- A release already in the runner tool cache is reused without any network request.
+
+Retries honour the `Retry-After` and `X-RateLimit-Reset` headers rather than backing off
+blindly, and give up instead of stalling a job for a full rate-limit window.
+
 ### Inputs
 
 | Name | Required | Default | Description |
 | --- | --- | --- | --- |
 | `version` | No | `latest` | A Tronador release tag or version. `latest` resolves the latest stable GitHub release. |
-| `install-dir` | No | `$RUNNER_TEMP/tronador-cli/bin` | Absolute directory where the executable is installed. The directory is added to `PATH`. |
+| `install-dir` | No | Runner tool cache | Absolute directory where the executable is installed. The directory is added to `PATH`. |
+| `token` | No | `${{ github.token }}` | Token used to authenticate the release lookup. Unused when `version` is pinned. Set to `''` to force anonymous lookups. |
 
 ### Outputs
 
@@ -83,10 +103,20 @@ Both `0.2.3` and `v0.2.3` are accepted:
 | --- | --- |
 | `version` | Installed release tag, such as `v0.2.3`. |
 | `path` | Absolute path to the installed executable. |
+| `cache-hit` | `true` when the release was served from the runner tool cache instead of downloaded. |
 
 ## Quick Start
 
 ### Development
+
+This is a Node.js 24 action. The runner executes `dist/index.mjs`, so the bundle
+must be rebuilt and committed whenever anything under `src/` changes:
+
+```bash
+npm ci
+npm test
+npm run build
+```
 
 `README.yaml` is the documentation source of truth. Generate `README.md` with
 Tronador after editing it:
@@ -96,14 +126,8 @@ tronador readme build
 tronador readme lint
 ```
 
-Run the installer tests locally:
-
-```bash
-bash test/install.sh
-```
-
-CI regenerates `README.md` from this file and fails if the generated result is
-not committed.
+CI regenerates `README.md` from this file, reruns the test suite, and fails if
+either `README.md` or `dist/` is out of date.
 
 
 ## Examples
@@ -118,6 +142,27 @@ not committed.
 
 - name: Report the installed version
   run: tronador version
+```
+
+### Supply an explicit token
+
+The default `${{ github.token }}` is enough for GitHub-hosted runners. Pass a
+different token when the workflow runs somewhere that token is unavailable, such
+as a self-hosted runner outside the repository's installation:
+
+```yaml
+- uses: cloudopsworks/install-tronador-cli@v1
+  with:
+    token: ${{ secrets.RELEASE_LOOKUP_TOKEN }}
+```
+
+### Install to an explicit directory
+
+```yaml
+- uses: cloudopsworks/install-tronador-cli@v1
+  with:
+    version: 0.2.3
+    install-dir: ${{ runner.temp }}/tronador/bin
 ```
 
 

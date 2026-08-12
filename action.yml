@@ -8,35 +8,29 @@ inputs:
     required: false
     default: latest
   install-dir:
-    description: Directory where the Tronador executable is installed. Defaults to a directory under RUNNER_TEMP.
+    description: Directory where the Tronador executable is installed. Defaults to the runner tool cache.
     required: false
     default: ''
+  token:
+    description: >-
+      Token used to resolve the latest release through the GitHub API. Authenticated requests are
+      rate limited per token instead of per runner IP address, which avoids HTTP 403 rate limit
+      failures on busy runners. Not used when `version` is pinned to a release tag.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   version:
     description: The installed release tag.
-    value: ${{ steps.install-posix.outputs.version || steps.install-windows.outputs.version }}
   path:
     description: Absolute path to the installed Tronador executable.
-    value: ${{ steps.install-posix.outputs.path || steps.install-windows.outputs.path }}
+  cache-hit:
+    description: Whether the release was served from the runner tool cache instead of being downloaded.
 
 runs:
-  using: composite
-  steps:
-    - id: install-posix
-      if: runner.os != 'Windows'
-      name: Install Tronador (Linux/macOS)
-      shell: bash
-      env:
-        INPUT_VERSION: ${{ inputs.version }}
-        INPUT_INSTALL_DIR: ${{ inputs.install-dir }}
-      run: bash "$GITHUB_ACTION_PATH/scripts/install.sh"
+  using: node24
+  main: dist/index.mjs
 
-    - id: install-windows
-      if: runner.os == 'Windows'
-      name: Install Tronador (Windows)
-      shell: pwsh
-      env:
-        INPUT_VERSION: ${{ inputs.version }}
-        INPUT_INSTALL_DIR: ${{ inputs.install-dir }}
-      run: '& "$env:GITHUB_ACTION_PATH/scripts/install.ps1"'
+branding:
+  icon: download
+  color: blue

@@ -3,6 +3,11 @@
 .tronador*.mk
 tronador/
 
+# Node
+# dist/ is intentionally committed: GitHub Actions runs the bundle directly.
+node_modules/
+*.tsbuildinfo
+
 # MacOS
 .DS_Store
 
